@@ -51,6 +51,7 @@ begin
     end process;
 
     count_proc: process
+        variable cnt_process : integer := 0;
     begin   
       reset_i <= '0';      
       load_i  <= '0';
@@ -83,7 +84,7 @@ begin
       data_i <= to_stdlogicvector(x"5E55");
       wait for period;
 
-      data_i <= to_stdlogicvector(x"f25e");
+      data_i <= to_stdlogicvector(x"725e");
       wait for period;
 
       load_i  <= '0';      
@@ -95,13 +96,13 @@ begin
       -- error checks state machine till step 3, two errors
       --data_i <= to_stdlogicvector(x"55537e");
       load_i  <= '1';
-      data_i <= to_stdlogicvector(x"5552");
+      data_i <= to_stdlogicvector(x"5572");
       wait for period;
 
-      data_i <= to_stdlogicvector(x"7E55");
+      data_i <= to_stdlogicvector(x"5E55");
       wait for period;      
       
-      data_i <= to_stdlogicvector(x"537e");
+      data_i <= to_stdlogicvector(x"725e");
       wait for period;
 
       load_i  <= '0';      
