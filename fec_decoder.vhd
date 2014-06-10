@@ -32,31 +32,22 @@ architecture rtl of fec_decoder is
   constant c_lm32_add     : natural := 1;
 
   --constant c_slave        : natural := 4;
-  constant c_slave        : natural := 2;
+  constant c_slave        : natural := 3;
   constant c_lm32_dpram   : natural := 0;
-  constant c_upper_bridge : natural := 1;
-  constant c_fec_dec      : natural := 2;
-  constant c_fabric2wb    : natural := 3;
+  constant c_upper_bridge : natural := 2;
+  constant c_fec_dec      : natural := 4;
+  constant c_fabric2wb    : natural := 1;
 
   -----------------------------------------------------------------------------
   --WB intercon
   -----------------------------------------------------------------------------  
-   constant c_layout_req : t_sdb_record_array(c_slave-1 downto 0) :=
+  constant c_layout_req : t_sdb_record_array(c_slave-1 downto 0) :=
      (c_lm32_dpram   => f_sdb_embed_device((f_xwb_dpram(g_dpram_size)), x"00000000"),
+      --c_fabric2wb    => f_sdb_embed_device(c_fec_fabric2wb_sdb,         x"3FFFFB00"),
+      c_fabric2wb    => f_sdb_embed_device(c_fec_fabric2wb_sdb,         x"00100000"),
       c_upper_bridge => f_sdb_embed_bridge(g_upper_bridge_sdb,          x"80000000"));
-
-      --c_upper_bridge => f_sdb_auto_bridge(g_upper_bridge_sdb,                  true));
-      --c_fec_dec      => f_sdb_auto_device(c_fec_dec_sdb,               true),
-      --c_fabric2wb    => f_sdb_auto_device(c_fec_fabric2wb_sdb,         true));
-   --constant c_sdb_address : t_wishbone_address := x"03FFFF00";
-   constant c_sdb_address : t_wishbone_address := x"4FFFE000";
-
-   --constant c_layout      : t_sdb_record_array(c_slave-1 downto 0) := f_sdb_auto_layout(c_layout_req);
-   --constant c_sdb_address : t_wishbone_address := f_sdb_auto_sdb(c_layout_req);
-
-   --constant c_layout      : t_sdb_record_array(c_slave-1 downto 0) := f_sdb_auto_layout(c_layout_req);
-   --constant c_sdb_address : t_wishbone_address := f_sdb_auto_sdb(c_layout_req);
-   --constant c_bridge_sdb  : t_sdb_bridge     := f_xwb_bridge_layout_sdb(true, c_layout, c_sdb_address);
+ 
+   constant c_sdb_address : t_wishbone_address := x"3FFFE000";
 
    signal cbar_slave_i  : t_wishbone_slave_in_array  (c_master-1 downto 0);
    signal cbar_slave_o  : t_wishbone_slave_out_array (c_master-1 downto 0);
@@ -95,15 +86,16 @@ begin
   -- FEC Decoder Unit
   -----------------------------------------------------------------------------
 
---  F2W_FIFO : fabric2wb_fifo
---    port map(
---      clk_i           => clk_i,
---      rst_n_i         => rst_n_i,
---      dec_snk_i       => dec_snk_i,  
---      dec_snk_o       => dec_snk_o,
---      wb_fwb_slave_i  => cbar_master_o(c_fabric2wb),
---      wb_fwb_slave_o  => cbar_master_i(c_fabric2wb));
--- 
+  F2W_FIFO : fabric2wb_fifo
+    port map(
+      clk_i           => clk_i,
+      rst_n_i         => rst_n_i,
+      dec_snk_i       => dec_snk_i,  
+      dec_snk_o       => dec_snk_o,
+      irq_fwb_o       => s_lm32_irq(0),
+      wb_fwb_slave_i  => cbar_master_o(c_fabric2wb),
+      wb_fwb_slave_o  => cbar_master_i(c_fabric2wb));
+ 
   -----------------------------------------------------------------------------
   -- LM32 softCPU
   -----------------------------------------------------------------------------
@@ -114,8 +106,7 @@ begin
     port map(
       clk_sys_i => clk_i,
       rst_n_i   => s_rst_lm32_n,
-      --irq_i     => s_lm32_irq,
-      irq_i     => (others => '0'),
+      irq_i     => s_lm32_irq,
       dwb_o     => cbar_slave_i(c_lm32_data), -- Data bus
       dwb_i     => cbar_slave_o(c_lm32_data),
       iwb_o     => cbar_slave_i(c_lm32_add), -- Instruction bus
@@ -146,8 +137,6 @@ begin
 
   cbar_master_i(c_upper_bridge)	<= wb_cross_master_i;
   wb_cross_master_o  				    <= cbar_master_o(c_upper_bridge);
-  --wb_cross_master_o  				    <=  cc_dummy_master_out;
-
 
   -----------------------------------------------------------------------------
   -- WB intercon

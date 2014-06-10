@@ -291,6 +291,7 @@ package fec_pkg is
       rst_n_i        : in  std_logic;
       dec_snk_i      : in  t_wrf_sink_in;
       dec_snk_o      : out t_wrf_sink_out;
+      irq_fwb_o      : out std_logic;
       wb_fwb_slave_i : in  t_wishbone_slave_in;
       wb_fwb_slave_o : out t_wishbone_slave_out);
   end component;
