@@ -5,8 +5,7 @@
 //  SBD BASE ADR IS GATEWARE DEPENDENT!   //
 //  SEE modules/ftm/ftm_lm32.vhd          //
 //                                        //
-//#define SBD_BASE        0x3FFFE000        //
-//#define SBD_BASE        0x30000        //
+#define SBD_BASE        0x3FFFE000
 //                                        //
 ////////////////////////////////////////////
 
@@ -103,9 +102,9 @@ typedef union sdb_record {
 unsigned char *find_device_deep(unsigned int base, unsigned int sdb,
                                        unsigned int devid);
 
-unsigned char *find_device(unsigned int devid, unsigned int sdb);
+unsigned char *find_device(unsigned int devid);
 
-void discoverPeriphery(unsigned int sdb);
+void discoverPeriphery();
 
 
 #endif
