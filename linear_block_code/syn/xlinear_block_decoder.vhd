@@ -137,7 +137,7 @@ begin
 
       else          
         -- loading the decoders 16bit to 24 bit
-        if s_load_data = '1' then
+        if s_load_data = '1' and s_empty_slot_buff = '0' then
           s_data              <=  s_deco_shovel;
 
           -- counter
@@ -147,33 +147,22 @@ begin
             s_cntr_deco_slot  <= 1;
           end if;
 
-          -- decoded slot assignment
+          -- decoded slot assignment there are 8*12 bits, 96 bits, 3*32bits wb
           s_deco_slot(s_slot_free)  <= s_cntr_deco_slot;
 
           -- s_load pulse
           s_load(s_slot_free) <= '1';
           s_slot_pre <= s_slot_free;
-
+        elsif s_emptz_slot_buff = '1' then
+          --halt!!! in priciple not needed... speepd line
         end if;
         -- negates previous load pulse 
         s_load(s_slot_pre)  <= '0';
  
-        -- decoder just finished, next decoder free
-        --for i in 0 to c_num_decoders-1 loop
-        --  if s_done_dec(i) = '1' or s_err_dec(i) = '1' then
-        --    free <= free + 1;
-        --  end if;
-        --end loop;
-
-        --if s_load_data = '1' then
-        --  s_next <= s_next + 1;
-        --end if;
-
-        -- gathering from decoders 12 bits outputs to 96 bit buffer (3 x wb 32bits) 
-
-
+        -- 
         v_deco_block  := (others => (others => '0'));
 
+        -- storing decoded 12 bits in a buffer of 8*12 bits
         for k in 0 to c_num_decoders-1 loop
           if s_done_dec(k) = '1' then
             upper := (12 * s_deco_slot(k)) - 1;
