@@ -51,15 +51,15 @@ begin
     end process;
 
     count_proc: process
-        variable cnt_process : integer := 0;
+        variable cnt_proc : integer;
     begin   
       reset_i <= '0';      
       load_i  <= '0';
-      data_i <= (others=>'0'); 
+      data_i  <= (others=>'0');
+      cnt_proc := 0;
       wait for period*2;
       reset_i <= '1';
       wait for period*2;
-      load_i  <= '1';
       -- simulates a halt from the fabric
       --      load_i  <= '0';      
       --      wait for period*3;
@@ -69,10 +69,11 @@ begin
       ---------------------------------------------------------
       -- error checks state machine till step 4, three bit error
       --data_i <= to_stdlogicvector(x"54524a");
-      report "STARTING";
-      report "FIRST 48 bytes";
-     ---------------------------------------------------------------
-      report "1 BLOCK";
+      report "STARTING";      
+      load_i  <= '1';
+      ---------------------------------------------------------------
+      report "BLOCK " &   INTEGER'IMAGE(cnt_proc);
+      cnt_proc := cnt_proc + 1;
       --data_i <= to_stdlogicvector(x"55725e")
       --data_i <= to_stdlogicvector(x"55f25e")
       --till step 1, one bit error
@@ -86,11 +87,23 @@ begin
 
       data_i <= to_stdlogicvector(x"725e");
       wait for period;
-
-      load_i  <= '0';      
+      ---------------------------------------------------------------      
+      report "BLOCK " &   INTEGER'IMAGE(cnt_proc);
+      cnt_proc := cnt_proc + 1;
+      -- error checks state machine till step 4, three bit error
+      -- data_i <= to_stdlogicvector(x"54524a");
+      data_i <= to_stdlogicvector(x"5452");
       wait for period;
-      ---------------------------------------------------------------
-      report "2 BLOCK";
+
+      data_i <= to_stdlogicvector(x"4a54");
+      wait for period;
+      
+      data_i <= to_stdlogicvector(x"524a");
+      wait for period;
+     ---------------------------------------------------------------      
+     report "BLOCK " &   INTEGER'IMAGE(cnt_proc);
+     cnt_proc := cnt_proc + 1;
+
       -- error checks state machine till step 2, one error
       --data_i <= to_stdlogicvector(x"55527e");
       -- error checks state machine till step 3, two errors
@@ -107,8 +120,10 @@ begin
 
       load_i  <= '0';      
       wait for period*1;
-      ---------------------------------------------------------------
-      report "3 BLOCK";
+      ---------------------------------------------------------------    
+      report "BLOCK " &   INTEGER'IMAGE(cnt_proc);
+      cnt_proc := cnt_proc + 1;
+
       --data_i <= to_stdlogicvector(x"55725e")
       --data_i <= to_stdlogicvector(x"55f25e")
       --till step 1, one bit error
