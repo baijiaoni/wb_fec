@@ -36,8 +36,15 @@ architecture rtl of wb_slave_fec is
    signal s_fec_ctrl : t_fec_ctrl_reg  := c_ctrl_reg_default;
    signal s_pg_stat  : t_pg_stat_reg   := c_pg_stat_default;
    signal s_pg_ctrl  : t_pg_ctrl_reg   := c_pg_ctrl_default ;
+   --signal s_pg_ctrl  : t_pg_ctrl_reg;
 
 begin
+
+   ------s_pg_ctrl.en_pg        <= '0';
+   --s_pg_ctrl.payload      <= x"01f3";
+   --s_pg_ctrl.rate         <= x"0404";
+   --s_pg_ctrl.eth_hdr.eth_src_addr   <= x"abababababab";
+   --s_pg_ctrl.eth_hdr.eth_etherType  <= x"0800";
 
    -- this wb slave doesn't supoort them
    wb_slave_o.int <= '0';
@@ -54,7 +61,7 @@ begin
          s_fec_stat  <= c_stat_reg_default;
          s_fec_ctrl  <= c_ctrl_reg_default;
          s_pg_stat   <= c_pg_stat_default;
-         s_pg_ctrl   <= c_pg_ctrl_default;
+   	 --s_pg_ctrl.eth_hdr.eth_des_addr   <= x"123456789012";
 
          wb_slave_o.ack    <= '0';
          wb_slave_o.dat    <= (others => '0');

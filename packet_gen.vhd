@@ -27,6 +27,7 @@ architecture rtl of packet_gen is
    signal s_pg_state       : t_pg_state := c_pg_state_default;
    -- wb reg
    signal s_ctrl_reg       : t_pg_ctrl_reg := c_pg_ctrl_default;
+  -- signal s_ctrl_reg       : t_pg_ctrl_reg;
    signal s_stat_reg       : t_pg_stat_reg := c_pg_stat_default;
 
    signal s_frame_gen      : integer := 0;
@@ -40,8 +41,23 @@ architecture rtl of packet_gen is
    signal load_cntr        : integer := 0;   
    signal rate_max         : integer := 0;
    signal load_max         : integer := 0;
+   signal i                : integer := 0;
+
+--   type lut is array ( 0 to 3) of std_logic_vector(47 downto 0);
+--   constant my_lut : lut := (
+--   0 => x"123456789012",
+--   1 => x"222222222222",
+--   2 => x"333333333333",
+ --  3 => x"444444444444"); 
 
 begin
+
+--   s_ctrl_reg.eth_hdr.eth_src_addr   <= x"abababababab";
+ --  s_ctrl_reg.eth_hdr.eth_etherType  <= x"0800";
+ --  s_ctrl_reg.en_pg        <= '0';
+ --  s_ctrl_reg.payload      <= x"01f3";
+  -- s_ctrl_reg.rate         <= x"0404";
+
 
   -- Start/Stop fsm Packet Generator
    pg_fsm : process(clk_i)
@@ -104,11 +120,14 @@ begin
         else
             if s_pg_state.gen_packet = '1'  then
                if rate_max /= rate then
+   		  --s_ctrl_reg.eth_hdr.eth_des_addr   <= my_lut(i);
                   case s_frame_fsm is
                      when INIT_HDR =>
                         s_frame_fsm       <= ETH_HDR;
-                        s_eth_hdr         <= f_eth_hdr(s_ctrl_reg.eth_hdr);
-                        s_hdr_reg         <= f_eth_hdr(s_ctrl_reg.eth_hdr);
+                        ----s_eth_hdr         <= f_eth_hdr(s_ctrl_reg.eth_hdr);
+			s_eth_hdr         <= x"1212121212123434565656565656";--des mac 
+                        --s_hdr_reg         <= f_eth_hdr(s_ctrl_reg.eth_hdr);
+			s_hdr_reg         <= x"1212121212123434565656565656";
                         s_start_payload   <= '0';
                      when ETH_HDR =>
                         if hdr_cntr = c_hdr_l   then
@@ -152,7 +171,8 @@ begin
                            s_pg_state.cyc_ended <= '1';
                         end if;
                      end case;
-                  rate <= rate + 1;   
+                  rate <= rate + 1; 
+                  --i <= (i+1) rem 4;  
                else
                   rate        <= 0;
                   s_hdr_reg   <= s_eth_hdr;
@@ -174,7 +194,7 @@ begin
       stall_i  => pg_src_i.stall,
       enc_o    => s_pay_load);
 
-   -- Fabric Interface
+   ----- Fabric Interface
    -- Mux between header and payload
    with s_frame_fsm select
    pg_src_o.dat   <= s_pay_load                                            when PAY_LOAD,
@@ -193,7 +213,7 @@ begin
    begin
       if rising_edge(clk_i) then
          if rst_n_i = '0' then
-            s_ctrl_reg  <= c_pg_ctrl_default;
+   	    s_ctrl_reg <= c_pg_ctrl_default;
             s_frame_gen <= 0;
          else
             s_ctrl_reg            <= ctrl_reg_i;
