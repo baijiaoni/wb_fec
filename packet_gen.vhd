@@ -47,9 +47,9 @@ architecture rtl of packet_gen is
    type lut is array ( 0 to 3) of std_logic_vector(111 downto 0);
    constant my_lut : lut := (
    0 => x"1111111111110000222200000000",
-   1 => x"2222222222220000333300000000",
-   2 => x"3333333333334444555522226666",
-   3 => x"4444444444440000000000002222"); 
+   1 => x"3333333333330000333300000000",
+   2 => x"2222222222224444555522226666",
+   3 => x"4444444444440000123400002222"); 
 
    type lut1 is array ( 0 to 3) of std_logic_vector(47 downto 0);
    constant des_mac_lut : lut1 := (
@@ -153,6 +153,7 @@ begin
 
                            if pg_src_i.stall /= '1' then
                               s_hdr_reg       <= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
+			      --s_hdr_reg       <= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
                               hdr_cntr        <= hdr_cntr + 1;
 
                               if hdr_cntr = c_hdr_l - 1 then
