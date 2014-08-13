@@ -1,4 +1,4 @@
---! Register Map
+--! Register Map ************************
 --! 0x00, wr, enable/disable encoder 
 --! 0x04, wr, enable/disable decoder
 --! 0x08, wr, number of frames encoded
