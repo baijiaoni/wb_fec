@@ -43,12 +43,12 @@ architecture rtl of packet_gen is
    signal load_max         : integer := 0;
    signal i                : integer := 0;
 
---   type lut is array ( 0 to 3) of std_logic_vector(47 downto 0);
---   constant my_lut : lut := (
---   0 => x"123456789012",
---   1 => x"222222222222",
---   2 => x"333333333333",
- --  3 => x"444444444444"); 
+   type lut is array ( 0 to 3) of std_logic_vector(111 downto 0);
+   constant my_lut : lut := (
+   0 => x"1111111111110000222200000000",
+   1 => x"2222222222220000333300000000",
+   2 => x"3333333333334444555522226666",
+   3 => x"4444444444440000000000002222"); 
 
 begin
 
@@ -125,9 +125,11 @@ begin
                      when INIT_HDR =>
                         s_frame_fsm       <= ETH_HDR;
                         ----s_eth_hdr         <= f_eth_hdr(s_ctrl_reg.eth_hdr);
-			s_eth_hdr         <= x"1212121212123434565656565656";--des mac 
+ 			s_eth_hdr         <= my_lut(i);
+			--s_eth_hdr         <= x"1212121212123434565656565656";--des mac+ 0000+ether type+0000 
                         --s_hdr_reg         <= f_eth_hdr(s_ctrl_reg.eth_hdr);
-			s_hdr_reg         <= x"1212121212123434565656565656";
+			s_hdr_reg         <= my_lut(i);
+			--s_hdr_reg         <= x"1212121212123434565656565656";
                         s_start_payload   <= '0';
                      when ETH_HDR =>
                         if hdr_cntr = c_hdr_l   then
@@ -162,6 +164,7 @@ begin
                            end if;
                         end if;
                      when IDLE    =>
+                         i <= (i+1) rem 4;
                         s_frame_fsm     <= IDLE;
                         s_pay_load_reg  <= (others => '0');
                         s_hdr_reg       <= (others => '0');
@@ -171,8 +174,7 @@ begin
                            s_pg_state.cyc_ended <= '1';
                         end if;
                      end case;
-                  rate <= rate + 1; 
-                  --i <= (i+1) rem 4;  
+                  rate <= rate + 1;   
                else
                   rate        <= 0;
                   s_hdr_reg   <= s_eth_hdr;
