@@ -43,19 +43,11 @@ architecture rtl of packet_gen is
    signal load_max         : integer := 0;
    signal i                : integer := 0;
    signal ether_hdr        : t_eth_frame_header;
-
-   signal m                : integer := 0;
-   signal n                : integer := 0;
-   signal p                : integer := 0;
-   signal q                : integer := 0;
+   signal j                : integer := 0;
    signal s_first          : integer := 0;
+   signal pkg_cntr         : integer := 0; 
 
-   type lut is array ( 0 to 3) of std_logic_vector(111 downto 0);
-   constant my_lut : lut := (
-   0 => x"1111111111110000222200000000",
-   1 => x"3333333333330000333300000000",
-   2 => x"2222222222224444555522226666",
-   3 => x"4444444444440000123400002222"); 
+   
 
    type lut1 is array ( 0 to 3) of std_logic_vector(47 downto 0);
    constant des_mac_lut : lut1 := (
@@ -104,6 +96,7 @@ begin
                   if(s_pg_state.cyc_ended = '1') then
                      s_pg_fsm <= IDLE;
                      s_pg_state.gen_packet <= '0';
+
                   else
                      s_pg_fsm <= HALTING;
                      s_pg_state.gen_packet <= '1';
@@ -132,12 +125,14 @@ begin
             hdr_cntr             <= 0;
             load_cntr            <= 0;
             rate                 <= 0;
+	    pkg_cntr 		 <= 0;
         else
             if s_pg_state.gen_packet = '1'  then
-               if rate_max /= rate then
+               if rate /= 62500000 then
    		  --s_ctrl_reg.eth_hdr.eth_des_addr   <= my_lut(i);
                   case s_frame_fsm is
                      when INIT_HDR =>
+			pkg_cntr <= pkg_cntr +1;
                         i <= 0;
                         s_frame_fsm      	<= ETH_HDR;
                         ether_hdr. eth_des_addr <= des_mac_lut(i);
@@ -172,8 +167,6 @@ begin
                            end if;
                         end if;
                      when PAY_LOAD =>
-			   p <= p+1;
-			   q <= q+1;
 
                         if load_max = load_cntr then
                            s_frame_fsm       <= IDLE;
@@ -188,9 +181,12 @@ begin
                            end if;
                         end if;
                      when IDLE    =>
-			   q <= q+1;
-
-                        s_frame_fsm     <= IDLE;
+			--if (pkg_cntr = (1*1000000000/rate_max/16 - 1)) then
+			if (pkg_cntr = 3) then
+                           s_frame_fsm     <= IDLE;
+			else
+                           s_frame_fsm     <= INIT_HDR ;
+			end if;
                         s_pay_load_reg  <= (others => '0');
                         s_hdr_reg       <= (others => '0');
                         s_start_payload <= '0';
@@ -201,18 +197,15 @@ begin
                      end case;
                   rate <= rate + 1;   
                else
-			m <= 0;
-			n <= 0;
-			p <= 0;
-			q <= 0;
 
-		  i <= (i+1) rem 4;
-                  rate        <= 0;
+		  i				<= (i+1) rem 4;
+                  rate        			<= 0;
+	          pkg_cntr 			<= 0;
                   ether_hdr. eth_des_addr 	<= des_mac_lut(i);
 		  ether_hdr. eth_etherType 	<= ether_type_lut(i);
                   s_hdr_reg   			<= f_eth_hdr(ether_hdr);
                   --s_hdr_reg   		<= my_lut(i);
-                  s_frame_fsm 			<= ETH_HDR;
+                  s_frame_fsm 			<= INIT_HDR;
                end if;
             else
                   s_frame_fsm <= INIT_HDR;
