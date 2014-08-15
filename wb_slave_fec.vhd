@@ -4,10 +4,12 @@
 --! 0x08, wr, number of frames encoded
 --! 0x0C, wr, number of frames decoded
 --! 0x10, wr, enable/disable generator
---! 0x14, wr, payload/rate
+--! 0x14, wr, payload
 --! 0x18, wr, destination address hb, ethertype
 --! 0x1C, wr, destination address lb
 --! 0x20, wr, generated frames
+--! 0x24, wr, ctrl about packet generator rate
+--! 0x28, wr, choose packet model continuous/discrete
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -83,39 +85,44 @@ begin
                   wb_slave_o.dat <= s_fec_stat.stat_enc.frame_enc;
                when "0011"    => -- decoded frames 0xC
                   if wb_slave_i.we = '1' then
-                     s_fec_stat.stat_dec.err_dec <= wb_slave_i.dat; -- it'd be set to 0
+                     s_fec_stat.stat_dec.err_dec 	<= wb_slave_i.dat; -- it'd be set to 0
                   end if;
-                  wb_slave_o.dat <= s_fec_stat.stat_dec.err_dec;
+                  wb_slave_o.dat 			<= s_fec_stat.stat_dec.err_dec;
                when "0100"   => -- enable/disable packet generator 0x10
                   if wb_slave_i.we = '1' then
-                     s_pg_ctrl.en_pg <= wb_slave_i.dat(0);
+                     s_pg_ctrl.en_pg 			<= wb_slave_i.dat(0);
                   end if;
-                  wb_slave_o.dat(0) <= s_pg_ctrl.en_pg;
-                  wb_slave_o.dat(31 downto 1) <= (others => '0');
-               when "0101"   => -- ctrl about packet generator, payload/rate 0x14
+                  wb_slave_o.dat(0) 			<= s_pg_ctrl.en_pg;
+                  wb_slave_o.dat(31 downto 1) 		<= (others => '0');
+               when "0101"   => -- ctrl about packet generator, payload 0x14
                   if wb_slave_i.we = '1' then
-                     s_pg_ctrl.payload                <= wb_slave_i.dat(31 downto 16);
-                     s_pg_ctrl.rate                   <= wb_slave_i.dat(15 downto 0);
+                     s_pg_ctrl.payload                	<= wb_slave_i.dat(31 downto 16);
                   end if;                  
-                     wb_slave_o.dat(31 downto 16) <= s_pg_ctrl.payload;
-                     wb_slave_o.dat(15 downto 0)  <= s_pg_ctrl.rate;
+                     wb_slave_o.dat(31 downto 16)	<= s_pg_ctrl.payload;
                when "0110"   => -- ctrl about packet generator mac_add hb/ethertype 0x18
                   if wb_slave_i.we = '1' then
                      s_pg_ctrl.eth_hdr.eth_des_addr(47 downto 32) <= wb_slave_i.dat(31 downto 16);
-                     s_pg_ctrl.eth_hdr.eth_etherType                      <= wb_slave_i.dat(15 downto 0);
+                     s_pg_ctrl.eth_hdr.eth_etherType    <= wb_slave_i.dat(15 downto 0);
                   end if;                  
-                     wb_slave_o.dat(31 downto 16) <= s_pg_ctrl.eth_hdr.eth_des_addr(47 downto 32);
-                     wb_slave_o.dat(15 downto 0)  <= s_pg_ctrl.eth_hdr.eth_etherType;
+                     wb_slave_o.dat(31 downto 16) 	<= s_pg_ctrl.eth_hdr.eth_des_addr(47 downto 32);
+                     wb_slave_o.dat(15 downto 0)	<= s_pg_ctrl.eth_hdr.eth_etherType;
                when "0111"   => -- ctrl about packet generator mac_add lb 0x1C
                   if wb_slave_i.we = '1' then
                      s_pg_ctrl.eth_hdr.eth_des_addr(31 downto 0) <= wb_slave_i.dat(31 downto 0);
                   end if;                  
-                     wb_slave_o.dat(31 downto 0) <= s_pg_ctrl.eth_hdr.eth_des_addr(31 downto 0);
+                     wb_slave_o.dat(31 downto 0) 	<= s_pg_ctrl.eth_hdr.eth_des_addr(31 downto 0);
                when "1000"   => -- ctrl about packet generator 0x20
                   if wb_slave_i.we = '1' then
-                     s_pg_stat.frame_gen  <= wb_slave_i.dat;
+                     s_pg_stat.frame_gen  		<= wb_slave_i.dat;
                   end if;
-                     wb_slave_o.dat <= s_pg_stat.frame_gen;
+                     wb_slave_o.dat 			<= s_pg_stat.frame_gen;
+
+               when "1001"   => -- ctrl about packet generator rate 0x24
+                  if wb_slave_i.we = '1' then
+                     s_pg_ctrl.rate                   	<= wb_slave_i.dat(31 downto 0);
+                  end if;
+                     wb_slave_o.dat(31 downto 0)  	<= s_pg_ctrl.rate;
+
                when others =>
             end case;
          end if;      

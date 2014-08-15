@@ -181,8 +181,8 @@ begin
                            end if;
                         end if;
                      when IDLE    =>
-			--if (pkg_cntr = (1*1000000000/rate_max/16 - 1)) then
-			if (pkg_cntr = 3) then
+			if (pkg_cntr = (1*1000000000/rate_max/16 )) then
+			--if (pkg_cntr = 3) then
                            s_frame_fsm     <= IDLE;
 			else
                            s_frame_fsm     <= INIT_HDR ;

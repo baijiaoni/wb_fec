@@ -73,7 +73,7 @@ package fec_pkg is
     --payload     : integer;
       payload     : std_logic_vector(15 downto 0);
     --rate        : integer;
-      rate        : std_logic_vector(15 downto 0);
+      rate        : std_logic_vector(31 downto 0);
       eth_hdr     : t_eth_frame_header;
   end record;
 
@@ -168,7 +168,7 @@ package fec_pkg is
   constant c_pg_ctrl_default    : t_pg_ctrl_reg   := (
     en_pg       => '0',
     payload     => x"01f4",
-    rate        => x"0404",
+    rate        => x"00000404",
     eth_hdr     => c_eth_frame_header_default);
 
   constant c_pg_state_default   : t_pg_state      := (
