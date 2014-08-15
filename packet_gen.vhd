@@ -48,7 +48,7 @@ architecture rtl of packet_gen is
    signal n                : integer := 0;
    signal p                : integer := 0;
    signal q                : integer := 0;
-   signal j                : integer := 0;
+   signal s_first          : integer := 0;
 
    type lut is array ( 0 to 3) of std_logic_vector(111 downto 0);
    constant my_lut : lut := (
@@ -59,17 +59,17 @@ architecture rtl of packet_gen is
 
    type lut1 is array ( 0 to 3) of std_logic_vector(47 downto 0);
    constant des_mac_lut : lut1 := (
-   0 => x"111111111111",
-   1 => x"222222222222",
-   2 => x"333333333333",
-   3 => x"444444444444"); 
+   0 => x"123456789021",
+   1 => x"123456789021",
+   2 => x"123456789021",
+   3 => x"123456789021"); 
 
    type lut2 is array ( 0 to 3) of std_logic_vector(15 downto 0);
    constant ether_type_lut : lut2 := (
-   0 => x"0100",
-   1 => x"0200",
-   2 => x"0300",
-   3 => x"0400"); 
+   0 => x"0800",
+   1 => x"0800",
+   2 => x"0800",
+   3 => x"0800"); 
 
 
 begin
@@ -138,28 +138,15 @@ begin
    		  --s_ctrl_reg.eth_hdr.eth_des_addr   <= my_lut(i);
                   case s_frame_fsm is
                      when INIT_HDR =>
-			m <= m+1;
-			n <= n+1;
-			p <= p+1;
-			q <= q+1;
-
                         i <= 0;
                         s_frame_fsm      	<= ETH_HDR;
                         ether_hdr. eth_des_addr <= des_mac_lut(i);
 			ether_hdr. eth_etherType <= ether_type_lut(i);
                         s_eth_hdr         	<= f_eth_hdr(ether_hdr);
- 			--s_eth_hdr         	<= my_lut(i);
-			--s_eth_hdr         	<= x"1212121212123434565656565656";--des mac+ 0000+ether type+0000 
                         s_hdr_reg         	<= f_eth_hdr(ether_hdr);
-			--s_hdr_reg         	<= my_lut(i);
-			--s_hdr_reg         	<= x"1212121212123434565656565656";
                         s_start_payload   	<= '0';
                      when ETH_HDR =>
-			   n <= n+1;
-			   p <= p+1;
-			   q <= q+1;
-
-			   if hdr_cntr = c_hdr_l   then
+			if hdr_cntr = c_hdr_l-2   then
                            s_frame_fsm     	<= PAY_LOAD;
                            hdr_cntr        	<= 0;                           
                            s_start_payload   	<= '1';
@@ -168,13 +155,19 @@ begin
 
                            if pg_src_i.stall /= '1' then
                               s_hdr_reg       	<= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
-			      --s_hdr_reg       <= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
                               hdr_cntr       	<= hdr_cntr + 1;
 
-                              if hdr_cntr = c_hdr_l - 1 then
+                              if hdr_cntr = c_hdr_l - 3 then
                                  s_start_payload <= '1';
                               else
                                  s_start_payload <= '0';
+                              end if;
+                              s_first <= 0;
+                           else
+			      if s_first < 2 then
+                                 s_hdr_reg       	<= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
+		                 s_first <= s_first+1;
+				 --hdr_cntr       	<= hdr_cntr + 1;
                               end if;
                            end if;
                         end if;
