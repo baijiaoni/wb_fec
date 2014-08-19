@@ -7,6 +7,7 @@ use work.wishbone_pkg.all;
 use work.wr_fabric_pkg.all;
 use work.fec_pkg.all;
 use work.gray_pack.all;
+use work.lfsr_pkg.all;
 
 entity packet_gen is
    port (
@@ -43,7 +44,7 @@ architecture rtl of packet_gen is
    signal load_max         : integer := 0;
    signal i                : integer := 0;
    signal ether_hdr        : t_eth_frame_header;
-   signal j                : integer := 0;
+   signal j                : std_logic_vector(30 downto 0);
    signal s_first          : integer := 0;
    signal pkg_cntr         : integer := 0; 
 
@@ -52,9 +53,9 @@ architecture rtl of packet_gen is
    type lut1 is array ( 0 to 3) of std_logic_vector(47 downto 0);
    constant des_mac_lut : lut1 := (
    0 => x"123456789021",
-   1 => x"123456789021",
-   2 => x"123456789021",
-   3 => x"123456789021"); 
+   1 => x"222222222222",
+   2 => x"333333333333",
+   3 => x"444444444444"); 
 
    type lut2 is array ( 0 to 3) of std_logic_vector(15 downto 0);
    constant ether_type_lut : lut2 := (
@@ -133,10 +134,9 @@ begin
                   case s_frame_fsm is
                      when INIT_HDR =>
 			pkg_cntr <= pkg_cntr +1;
-                        i <= 0;
                         s_frame_fsm      	<= ETH_HDR;
-                        ether_hdr. eth_des_addr <= des_mac_lut(i);
-			ether_hdr. eth_etherType <= ether_type_lut(i);
+                        ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
+			ether_hdr. eth_etherType <= ether_type_lut(i rem 4 );
                         s_eth_hdr         	<= f_eth_hdr(ether_hdr);
                         s_hdr_reg         	<= f_eth_hdr(ether_hdr);
                         s_start_payload   	<= '0';
@@ -198,12 +198,12 @@ begin
                   rate <= rate + 1;   
                else
 
-		  i				<= (i+1) rem 4;
+		  --i				<= (i+1) rem 4;
                   rate        			<= 0;
 	          pkg_cntr 			<= 0;
-                  ether_hdr. eth_des_addr 	<= des_mac_lut(i);
-		  ether_hdr. eth_etherType 	<= ether_type_lut(i);
-                  s_hdr_reg   			<= f_eth_hdr(ether_hdr);
+                  --ether_hdr. eth_des_addr 	<= des_mac_lut(i);
+		  --ether_hdr. eth_etherType 	<= ether_type_lut(i);
+                  --s_hdr_reg   			<= f_eth_hdr(ether_hdr);
                   --s_hdr_reg   		<= my_lut(i);
                   s_frame_fsm 			<= INIT_HDR;
                end if;
@@ -213,6 +213,15 @@ begin
          end if;
       end if;
     end process;
+
+   random_seq : LFSR_GENERIC 
+   generic map(Width    => 31)
+   port map(
+      clock   => clk_i,
+      resetn  => rst_n_i,
+      random_out => j);
+
+   i <= to_integer(unsigned(j));
 
    payload_gen : xgray_encoder
    generic map(g_length => 16)
