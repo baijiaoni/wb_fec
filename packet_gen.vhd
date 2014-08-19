@@ -47,6 +47,7 @@ architecture rtl of packet_gen is
    signal j                : std_logic_vector(30 downto 0);
    signal s_first          : integer := 0;
    signal pkg_cntr         : integer := 0; 
+   signal last_mode        : std_logic := 0; 
 
    
 
@@ -126,22 +127,84 @@ begin
             hdr_cntr             <= 0;
             load_cntr            <= 0;
             rate                 <= 0;
-	    pkg_cntr 		 <= 0;
+      	    pkg_cntr 		 <= 0;
         else
-            if s_pg_state.gen_packet = '1'  then
-               if rate /= 62500000 then
-   		  --s_ctrl_reg.eth_hdr.eth_des_addr   <= my_lut(i);
+          last_mode <=
+           if s_pg_state.gen_packet = '1' and s_ctrl_reg.mode = '0' then
+               if rate_max /= rate then
                   case s_frame_fsm is
                      when INIT_HDR =>
-			pkg_cntr <= pkg_cntr +1;
+                        s_frame_fsm       <= ETH_HDR;
+                        ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
+			                  ether_hdr. eth_etherType <= ether_type_lut(i rem 4 );
+                        s_eth_hdr         	<= f_eth_hdr(ether_hdr);
+                        s_hdr_reg         	<= f_eth_hdr(ether_hdr);
+                        s_start_payload   <= '0';
+                     when ETH_HDR =>
+                        if hdr_cntr = c_hdr_l   then
+                           s_frame_fsm     <= PAY_LOAD;
+                           hdr_cntr        <= 0;                           
+                           s_start_payload   <= '1';
+                       else
+                           s_frame_fsm     <= ETH_HDR;
+
+                           if pg_src_i.stall /= '1' then
+                              s_hdr_reg       <= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
+                              hdr_cntr        <= hdr_cntr + 1;
+
+                              if hdr_cntr = c_hdr_l - 1 then
+                                 s_start_payload <= '1';
+                              else
+                                 s_start_payload <= '0';
+                              end if;
+                           end if;
+                        end if;
+                     when PAY_LOAD =>
+                        if load_max = load_cntr then
+                           s_frame_fsm       <= IDLE;
+                           s_start_payload   <= '0';
+                           s_pay_load_reg    <= (others => '0');
+                           load_cntr         <= 0;
+                        else
+                           s_frame_fsm       <= PAY_LOAD;
+                           s_start_payload   <= '1';
+                           if pg_src_i.stall /= '1' then
+                              load_cntr         <= load_cntr + 1;
+                           end if;
+                        end if;
+                     when IDLE    =>
+                        s_frame_fsm     <= IDLE;
+                        s_pay_load_reg  <= (others => '0');
+                        s_hdr_reg       <= (others => '0');
+                        s_start_payload <= '0';
+
+                        if s_pg_state.halt = '1' then
+                           s_pg_state.cyc_ended <= '1';
+                        end if;
+                     end case;
+                  rate <= rate + 1;   
+               else
+                  rate        <= 0;
+                  ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
+			            ether_hdr. eth_etherType<= ether_type_lut(i rem 4 );
+                  s_hdr_reg               <= f_eth_hdr(ether_hdr);
+                  s_frame_fsm <= ETH_HDR;
+               end if;
+  
+            else
+              if s_pg_state.gen_packet = '1' and s_ctrl_reg.mode = '1'  then
+               if rate /= 62500000 then
+                  case s_frame_fsm is
+                     when INIT_HDR =>
+			                  pkg_cntr <= pkg_cntr +1;
                         s_frame_fsm      	<= ETH_HDR;
                         ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
-			ether_hdr. eth_etherType <= ether_type_lut(i rem 4 );
+			                  ether_hdr. eth_etherType <= ether_type_lut(i rem 4 );
                         s_eth_hdr         	<= f_eth_hdr(ether_hdr);
                         s_hdr_reg         	<= f_eth_hdr(ether_hdr);
                         s_start_payload   	<= '0';
                      when ETH_HDR =>
-			if hdr_cntr = c_hdr_l-2   then
+			                if hdr_cntr = c_hdr_l-2   then
                            s_frame_fsm     	<= PAY_LOAD;
                            hdr_cntr        	<= 0;                           
                            s_start_payload   	<= '1';
@@ -159,10 +222,9 @@ begin
                               end if;
                               s_first <= 0;
                            else
-			      if s_first < 2 then
+			                        if s_first < 2 then
                                  s_hdr_reg       	<= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
-		                 s_first <= s_first+1;
-				 --hdr_cntr       	<= hdr_cntr + 1;
+		                             s_first <= s_first+1;
                               end if;
                            end if;
                         end if;
@@ -181,12 +243,11 @@ begin
                            end if;
                         end if;
                      when IDLE    =>
-			if (pkg_cntr = (1*1000000000/rate_max/16 )) then
-			--if (pkg_cntr = 3) then
+			                  if (pkg_cntr = (1*1000000000/rate_max/16 )) then
                            s_frame_fsm     <= IDLE;
-			else
+			                   else
                            s_frame_fsm     <= INIT_HDR ;
-			end if;
+			                   end if;
                         s_pay_load_reg  <= (others => '0');
                         s_hdr_reg       <= (others => '0');
                         s_start_payload <= '0';
@@ -198,13 +259,8 @@ begin
                   rate <= rate + 1;   
                else
 
-		  --i				<= (i+1) rem 4;
                   rate        			<= 0;
-	          pkg_cntr 			<= 0;
-                  --ether_hdr. eth_des_addr 	<= des_mac_lut(i);
-		  --ether_hdr. eth_etherType 	<= ether_type_lut(i);
-                  --s_hdr_reg   			<= f_eth_hdr(ether_hdr);
-                  --s_hdr_reg   		<= my_lut(i);
+	                pkg_cntr 			    <= 0;
                   s_frame_fsm 			<= INIT_HDR;
                end if;
             else
@@ -212,6 +268,7 @@ begin
             end if;
          end if;
       end if;
+    end if;
     end process;
 
    random_seq : LFSR_GENERIC 

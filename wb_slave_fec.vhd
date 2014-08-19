@@ -123,6 +123,13 @@ begin
                   end if;
                      wb_slave_o.dat(31 downto 0)  	<= s_pg_ctrl.rate;
 
+               when "1010"   => -- choose packet generator mode discrete/continuous 0x28
+                  if wb_slave_i.we = '1' then
+                     s_pg_ctrl.mode 			<= wb_slave_i.dat(0);
+                  end if;
+                  wb_slave_o.dat(0) 			<= s_pg_ctrl.mode;
+                  wb_slave_o.dat(31 downto 1) 		<= (others => '0');
+               
                when others =>
             end case;
          end if;      

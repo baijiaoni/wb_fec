@@ -70,9 +70,8 @@ package fec_pkg is
   type t_pg_ctrl_reg is
     record
       en_pg       : std_logic;
-    --payload     : integer;
+      mode        : std_logic;
       payload     : std_logic_vector(15 downto 0);
-    --rate        : integer;
       rate        : std_logic_vector(31 downto 0);
       eth_hdr     : t_eth_frame_header;
   end record;
@@ -167,6 +166,7 @@ package fec_pkg is
 
   constant c_pg_ctrl_default    : t_pg_ctrl_reg   := (
     en_pg       => '0',
+    mode        => '0',
     payload     => x"01f4",
     rate        => x"00000404",
     eth_hdr     => c_eth_frame_header_default);
