@@ -47,10 +47,7 @@ architecture rtl of packet_gen is
    signal j                : std_logic_vector(30 downto 0);
    signal s_first          : integer := 0;
    signal pkg_cntr         : integer := 0; 
-   signal last_mode        : std_logic := 0; 
-
-   
-
+ 
    type lut1 is array ( 0 to 3) of std_logic_vector(47 downto 0);
    constant des_mac_lut : lut1 := (
    0 => x"123456789021",
@@ -74,34 +71,76 @@ begin
       if rising_edge(clk_i) then
          if rst_n_i = '0' then
             s_pg_fsm <= IDLE;
-            s_pg_state.gen_packet <= '0';
+            s_pg_state.gen_con_packet <= '0';
+    				s_pg_state.gen_dis_packet <= '0';
             s_pg_state.halt       <= '0';
          else
-            case s_pg_fsm is
+             case s_pg_fsm is
                when IDLE =>
-                  if( s_ctrl_reg.en_pg = '1') then 
-                     s_pg_fsm <= GENERATING;
+                  if( s_ctrl_reg.en_pg = '1'and s_ctrl_reg.mode = '0') then 
+                     s_pg_fsm <= CONTINUOUS;
                   else
-                     s_pg_fsm <= IDLE;
+                    if( s_ctrl_reg.en_pg = '1'and s_ctrl_reg.mode = '1') then 
+                      s_pg_fsm <= DISCRETE;
+                    else
+                      s_pg_fsm <= IDLE;
+                    end if;
                   end if;
-                     s_pg_state.gen_packet <= '0';
-                     s_pg_state.halt       <= '0';
-               when GENERATING =>
+                     s_pg_state.gen_con_packet <= '0';
+                     s_pg_state.gen_dis_packet <= '0';
+                     s_pg_state.halt           <= '0';
+               when CONTINUOUS =>
                   if( s_ctrl_reg.en_pg = '0') then 
-                     s_pg_fsm <= HALTING;                     
+                    s_pg_fsm <= CON_HALTING;                     
                   else
-                     s_pg_fsm <= GENERATING;
+                    if( s_ctrl_reg.mode = '1') then 
+                      if(s_pg_state.cyc_ended = '1') then
+                        s_pg_fsm <= DISCRETE;
+                      else
+                        s_pg_fsm <= CONTINUOUS;
+                      end if;
+                    else
+                    s_pg_fsm <= CONTINUOUS;
+                    end if;
                   end if;
-                     s_pg_state.gen_packet <= '1';
-                     s_pg_state.halt       <= '0';
-               when HALTING =>
+                    s_pg_state.gen_con_packet <= '1';
+                    s_pg_state.gen_dis_packet <= '0';
+                    s_pg_state.halt       <= '0';
+               when DISCRETE =>
+                  if( s_ctrl_reg.en_pg = '0') then 
+                    s_pg_fsm <= DIS_HALTING;                     
+                  else
+                    if( s_ctrl_reg.mode = '0') then 
+                      if(s_pg_state.cyc_ended = '1') then
+                        s_pg_fsm <= CONTINUOUS;
+                      else
+                        s_pg_fsm <= DISCRETE;
+                      end if;
+                    else
+                    s_pg_fsm <= DISCRETE;
+                    end if;
+                  end if;
+                    s_pg_state.gen_con_packet <= '0';
+                    s_pg_state.gen_dis_packet <= '1';
+                    s_pg_state.halt       <= '0';
+               when CON_HALTING =>
                   if(s_pg_state.cyc_ended = '1') then
                      s_pg_fsm <= IDLE;
-                     s_pg_state.gen_packet <= '0';
+                     s_pg_state.gen_con_packet <= '0';
 
                   else
-                     s_pg_fsm <= HALTING;
-                     s_pg_state.gen_packet <= '1';
+                     s_pg_fsm <= CON_HALTING;
+                     s_pg_state.gen_con_packet <= '1';
+                  end if; 
+                  s_pg_state.halt <= '1';
+               when DIS_HALTING =>
+                  if(s_pg_state.cyc_ended = '1') then
+                     s_pg_fsm <= IDLE;
+                     s_pg_state.gen_dis_packet <= '0';
+
+                  else
+                     s_pg_fsm <= DIS_HALTING;
+                     s_pg_state.gen_dis_packet <= '1';
                   end if; 
                   s_pg_state.halt <= '1';
             end case;
@@ -129,11 +168,11 @@ begin
             rate                 <= 0;
       	    pkg_cntr 		 <= 0;
         else
-          last_mode <=
-           if s_pg_state.gen_packet = '1' and s_ctrl_reg.mode = '0' then
+           if s_pg_state.gen_con_packet = '1' then
                if rate_max /= rate then
                   case s_frame_fsm is
                      when INIT_HDR =>
+                        s_pg_state.cyc_ended <= '0';
                         s_frame_fsm       <= ETH_HDR;
                         ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
 			                  ether_hdr. eth_etherType <= ether_type_lut(i rem 4 );
@@ -178,38 +217,35 @@ begin
                         s_hdr_reg       <= (others => '0');
                         s_start_payload <= '0';
 
-                        if s_pg_state.halt = '1' then
-                           s_pg_state.cyc_ended <= '1';
-                        end if;
+                        s_pg_state.cyc_ended <= '1';
+
                      end case;
                   rate <= rate + 1;   
                else
                   rate        <= 0;
-                  ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
-			            ether_hdr. eth_etherType<= ether_type_lut(i rem 4 );
-                  s_hdr_reg               <= f_eth_hdr(ether_hdr);
-                  s_frame_fsm <= ETH_HDR;
+                  s_frame_fsm <= INIT_HDR;
                end if;
   
             else
-              if s_pg_state.gen_packet = '1' and s_ctrl_reg.mode = '1'  then
-               if rate /= 62500000 then
+              if s_pg_state.gen_dis_packet = '1' then
+                if rate /= 62500000 then
                   case s_frame_fsm is
-                     when INIT_HDR =>
-			                  pkg_cntr <= pkg_cntr +1;
-                        s_frame_fsm      	<= ETH_HDR;
-                        ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
-			                  ether_hdr. eth_etherType <= ether_type_lut(i rem 4 );
-                        s_eth_hdr         	<= f_eth_hdr(ether_hdr);
-                        s_hdr_reg         	<= f_eth_hdr(ether_hdr);
-                        s_start_payload   	<= '0';
-                     when ETH_HDR =>
+                    when INIT_HDR =>
+			                s_pg_state.cyc_ended <= '0';
+			                pkg_cntr <= pkg_cntr +1;
+                      s_frame_fsm      	<= ETH_HDR;
+                      ether_hdr. eth_des_addr <= des_mac_lut(i rem 4);
+			                ether_hdr. eth_etherType <= ether_type_lut(i rem 4 );
+                      s_eth_hdr         	<= f_eth_hdr(ether_hdr);
+                      s_hdr_reg         	<= f_eth_hdr(ether_hdr);
+                      s_start_payload   	<= '0';
+                    when ETH_HDR =>
 			                if hdr_cntr = c_hdr_l-2   then
-                           s_frame_fsm     	<= PAY_LOAD;
-                           hdr_cntr        	<= 0;                           
-                           s_start_payload   	<= '1';
-                       else
-                           s_frame_fsm     	<= ETH_HDR;
+                        s_frame_fsm     	<= PAY_LOAD;
+                        hdr_cntr        	<= 0;                           
+                        s_start_payload   	<= '1';
+                      else
+                        s_frame_fsm     	<= ETH_HDR;
 
                            if pg_src_i.stall /= '1' then
                               s_hdr_reg       	<= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
@@ -251,16 +287,14 @@ begin
                         s_pay_load_reg  <= (others => '0');
                         s_hdr_reg       <= (others => '0');
                         s_start_payload <= '0';
+                        s_pg_state.cyc_ended <= '1';
 
-                        if s_pg_state.halt = '1' then
-                           s_pg_state.cyc_ended <= '1';
-                        end if;
                      end case;
                   rate <= rate + 1;   
                else
 
                   rate        			<= 0;
-	                pkg_cntr 			    <= 0;
+	          pkg_cntr 			<= 0;
                   s_frame_fsm 			<= INIT_HDR;
                end if;
             else

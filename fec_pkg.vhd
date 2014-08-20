@@ -10,8 +10,10 @@ package fec_pkg is
 
 
   type t_pg_fsm is  (  IDLE,
-                       GENERATING,
-                       HALTING);
+                       CONTINUOUS,
+                       DISCRETE,
+                       CON_HALTING,
+                       DIS_HALTING);
 
   type t_frame_fsm  is (  INIT_HDR,
                           ETH_HDR,
@@ -84,7 +86,8 @@ package fec_pkg is
 
   type t_pg_state is
     record
-      gen_packet   : std_logic;
+      gen_con_packet   : std_logic;
+      gen_dis_packet   : std_logic;
       cyc_ended    : std_logic;
       halt         : std_logic;
   end record;
@@ -172,7 +175,8 @@ package fec_pkg is
     eth_hdr     => c_eth_frame_header_default);
 
   constant c_pg_state_default   : t_pg_state      := (
-    gen_packet  => '0',
+    gen_con_packet  => '0',
+	 gen_dis_packet  => '0',
     cyc_ended   => '0',
     halt        => '0');
 
