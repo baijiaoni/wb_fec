@@ -10,6 +10,8 @@
 --! 0x20, wr, generated frames
 --! 0x24, wr, ctrl about packet generator rate
 --! 0x28, wr, choose packet model continuous/discrete
+--! 0x2C, wr, 1 mac; 10 ehter type; 100 payload; 1000 rate from random or fixed 
+--! 0x30, wr, set rate at ramdom mode lasting time
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -125,11 +127,23 @@ begin
 
                when "1010"   => -- choose packet generator mode discrete/continuous 0x28
                   if wb_slave_i.we = '1' then
-                     s_pg_ctrl.mode 			<= wb_slave_i.dat(0);
+                     s_pg_ctrl.mode 			<= wb_slave_i.dat(1 downto 0);
                   end if;
-                  wb_slave_o.dat(0) 			<= s_pg_ctrl.mode;
-                  wb_slave_o.dat(31 downto 1) 		<= (others => '0');
+                  wb_slave_o.dat(1 downto 0) 			<= s_pg_ctrl.mode;
+                  wb_slave_o.dat(31 downto 2) 		<= (others => '0');
                
+               when "1011"   => -- choose packet generator mac, ether type,length, rate from random or fixed 0x2C
+                  if wb_slave_i.we = '1' then
+                     s_pg_ctrl.random_fix(3 downto 0) <= wb_slave_i.dat(3 downto 0);
+                  end if;
+                  wb_slave_o.dat(3 downto 0) 			<= s_pg_ctrl.random_fix(3 downto 0);
+                  wb_slave_o.dat(31 downto 4) 		<= (others => '0');
+             --  when "1100"   => -- set random rate last time 0x30
+                 -- if wb_slave_i.we = '1' then
+                   --  s_pg_ctrl.random_rate_time <= wb_slave_i.dat(31 downto 0);
+                  --end if;
+                 -- wb_slave_o.dat(31 downto 0) 			<= s_pg_ctrl.random_rate_time;
+
                when others =>
             end case;
          end if;      

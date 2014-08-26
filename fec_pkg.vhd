@@ -72,7 +72,9 @@ package fec_pkg is
   type t_pg_ctrl_reg is
     record
       en_pg       : std_logic;
-      mode        : std_logic;
+      mode        : std_logic_vector(1 downto 0);
+      --random_rate_time   : std_logic_vector(31 downto 0);
+      random_fix  : std_logic_vector(3 downto 0);
       payload     : std_logic_vector(15 downto 0);
       rate        : std_logic_vector(31 downto 0);
       eth_hdr     : t_eth_frame_header;
@@ -88,8 +90,9 @@ package fec_pkg is
     record
       gen_con_packet   : std_logic;
       gen_dis_packet   : std_logic;
-      cyc_ended    : std_logic;
-      halt         : std_logic;
+      cyc_ended        : std_logic;
+      new_start        : std_logic;
+      halt             : std_logic;
   end record;
 
   constant c_fec_reg_sdb : t_sdb_device := (
@@ -169,16 +172,19 @@ package fec_pkg is
 
   constant c_pg_ctrl_default    : t_pg_ctrl_reg   := (
     en_pg       => '0',
-    mode        => '0',
+    mode        => "00",
+  --  random_rate_time => x"BA2E8",--1ms
+    random_fix  => "0000",
     payload     => x"01f4",
     rate        => x"00000404",
     eth_hdr     => c_eth_frame_header_default);
 
   constant c_pg_state_default   : t_pg_state      := (
     gen_con_packet  => '0',
-	 gen_dis_packet  => '0',
-    cyc_ended   => '0',
-    halt        => '0');
+	  gen_dis_packet  => '0',
+    cyc_ended       => '0',
+	 new_start        => '0',
+    halt            => '0');
 
   constant c_stat_reg_default   : t_fec_stat_reg  := (
     stat_enc    => c_stat_enc_reg_default,
