@@ -73,7 +73,7 @@ package fec_pkg is
     record
       en_pg       : std_logic;
       mode        : std_logic_vector(1 downto 0);
-      --random_rate_time   : std_logic_vector(31 downto 0);
+      random_rate_time   : std_logic_vector(27 downto 0);
       random_fix  : std_logic_vector(3 downto 0);
       payload     : std_logic_vector(15 downto 0);
       rate        : std_logic_vector(31 downto 0);
@@ -173,7 +173,7 @@ package fec_pkg is
   constant c_pg_ctrl_default    : t_pg_ctrl_reg   := (
     en_pg       => '0',
     mode        => "00",
-  --  random_rate_time => x"BA2E8",--1ms
+    random_rate_time => x"3B9ACA0",
     random_fix  => "0000",
     payload     => x"01f4",
     rate        => x"00000404",

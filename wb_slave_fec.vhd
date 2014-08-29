@@ -13,7 +13,7 @@
 --! 0x2C, wr, 0x0 mac, ether type, payload length, rate from wb; 0x1 mac from
 --!           random sequence; 0x2 ether type from random sequence; 0x4 payload from random
 --!           sequence; 0x8 rate from random sequence
-
+--! 0x30  wr, set a specified rate running time at random mode
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -139,11 +139,12 @@ begin
                   end if;
                   wb_slave_o.dat(3 downto 0) 			<= s_pg_ctrl.random_fix(3 downto 0);
                   wb_slave_o.dat(31 downto 4) 		<= (others => '0');
-             --  when "1100"   => -- set random rate last time 0x30
-                 -- if wb_slave_i.we = '1' then
-                   --  s_pg_ctrl.random_rate_time <= wb_slave_i.dat(31 downto 0);
-                  --end if;
-                 -- wb_slave_o.dat(31 downto 0) 			<= s_pg_ctrl.random_rate_time;
+              when "1100"   => -- set random rate last time 0x30
+                  if wb_slave_i.we = '1' then
+                     s_pg_ctrl.random_rate_time(27 downto 0) <= wb_slave_i.dat(27 downto 0);
+                  end if;
+                  wb_slave_o.dat(27 downto 0)       <= s_pg_ctrl.random_rate_time(27 downto 0);
+                  wb_slave_o.dat(31 downto 28) 	  	<= (others => '0');
 
                when others =>
             end case;
