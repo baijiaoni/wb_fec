@@ -37,25 +37,27 @@ architecture rtl of packet_gen is
    signal s_pay_load_reg   : t_wrf_bus := (others => '0');
    signal s_hdr_reg        : t_eth_hdr := (others => '0');
    signal s_eth_hdr        : t_eth_hdr := (others => '0');
-   signal rate_con         : integer := 0;
-   signal rate_dis         : integer := 0;
-   signal hdr_cntr         : integer := 0;
-   signal load_cntr        : integer := 0;   
-   signal rate_max         : integer := 0;
-   signal rate_random_cont : integer := 0;
-   signal rate_time        : integer := 62500000;
-   signal load_max         : integer := 0;
-   signal rate_label       : std_logic := '1';
- 	 signal last_rate        : integer := 0;
-   signal i                : integer := 0; 
-   signal ether_hdr        : t_eth_frame_header;
-   signal j                : std_logic_vector(30 downto 0);
-   signal s_first          : integer := 0;
-   signal pkg_cntr         : integer := 0; 
-   signal con_count        : integer := 0; 
-   signal dis_count        : integer := 0; 
-   signal con_time         : integer := 0; 
-   signal dis_time         : integer := 0; 
+   signal s_rate_con         : integer := 0;
+   signal s_rate_dis         : integer := 62500000;
+   signal s_hdr_cntr         : integer := 0;
+   signal s_load_cntr        : integer := 0;   
+   signal s_rate_max         : integer := 0;
+   signal s_rate_random_cont : integer := 0;
+   signal s_rate_time        : integer := 62500000;
+   signal s_load_max         : integer := 0;
+   signal s_rate_label       : std_logic := '1';
+   signal s_old_rate         : integer := 0;
+   signal s_random_seq       : integer := 0; 
+   signal s_ether_hdr        : t_eth_frame_header;
+   signal s_random_seq_o     : std_logic_vector(31 downto 0);
+   signal s_first            : integer := 0;
+   signal s_pkg_cntr         : integer := 0; 
+   signal s_con_count        : integer := 0; 
+   signal s_dis_count        : integer := 0; 
+   signal s_con_time         : integer := 0; 
+   signal s_dis_time         : integer := 0; 
+	signal i                  : integer;
+
  
    type lut1 is array ( 0 to 3) of std_logic_vector(47 downto 0);
    constant des_mac_lut : lut1 := (
@@ -68,37 +70,38 @@ architecture rtl of packet_gen is
    constant ether_type_lut : lut2 := (
    0 => x"1111",
    1 => x"2222",
-   2 => x"0800",
-   3 => x"0800"); 
+   2 => x"3333",
+   3 => x"4444"); 
 
-Procedure configure (x: in std_logic_vector(3 downto 0):="0000"; mac_address: out std_logic_vector (47 downto 0);
-							ether_type: out std_logic_vector (15 downto 0); payload_length: out std_logic_vector (15 downto 0)) is
-  begin
+Procedure rdm_fix_cfg (x: in std_logic_vector(3 downto 0):="0000"; mac_address: out std_logic_vector (47 downto 0);
+							ether_type: out std_logic_vector (15 downto 0); payload_length: out integer) is
+	 begin
+
     -- mac address from random or wb
     if (x(0) = '0') then
       mac_address(47 downto 0) := s_ctrl_reg.eth_hdr.eth_des_addr;
     else
-      mac_address(47 downto 0) := des_mac_lut(i rem 4);
+      mac_address(47 downto 0) := des_mac_lut(s_random_seq rem 4);
     end if;
     -- ether type from random(1) or wb(0)
     if (x(1) = '0') then
       ether_type(15 downto 0) := s_ctrl_reg.eth_hdr.eth_etherType;
     else
-      ether_type(15 downto 0) := ether_type_lut(i rem 4); 
+      ether_type(15 downto 0) := ether_type_lut(s_random_seq rem 4); 
     end if;
     -- payload length from random(1) or wb(0)
     if (x(2) = '0') then
-      payload_length(15 downto 0) := s_ctrl_reg.payload;
+      payload_length := to_integer(unsigned(s_ctrl_reg.payload));	
     else
-      payload_length(15 downto 0) := x"01F6"; -- payload length is 46 to 1500
+      payload_length := to_integer((unsigned(s_random_seq_o and x"00000fff")) rem 1455 + 46); -- payload length is 46 to 1500
     end if;
-  END PROCEDURE configure;
+  END PROCEDURE rdm_fix_cfg;
 
 
 
 
 begin
-   ether_hdr.eth_src_addr <= x"333322221111";
+   s_ether_hdr.eth_src_addr <= x"333322221111";
   -- Start/Stop fsm Packet Generator
    pg_fsm : process(clk_i)
    begin
@@ -123,8 +126,8 @@ begin
                     	if( s_ctrl_reg.en_pg = '1'and s_ctrl_reg.mode = "10") then 
                       	s_pg_fsm <= CONTINUOUS;
                       	-- lasting time of continuous mode in alternate pattern 
-                      	con_time <= 62500000;
-                      	con_count<= 0;
+                      	s_con_time <= 62500000 + (s_random_seq rem 250000001);
+                      	s_con_count<= 0;
                     	else
                       s_pg_fsm <= IDLE;
                       end if;
@@ -152,16 +155,16 @@ begin
                     	-- switch to the alternate pattern
                     	if( s_ctrl_reg.mode = "10") then 
                     	  -- gaurantee continuous mode run a random time before switch
-                      	if con_time /= con_count then
+                      	if s_con_time /= s_con_count then
                       		s_pg_fsm <= CONTINUOUS;
-                      		con_count<= con_count + 1;
+                      		s_con_count<= s_con_count + 1;
                       	else
                       		-- gaurantee a whole packet is transfered before switch to discrete mode
                       	  if(s_pg_state.cyc_ended = '1') then
                       	    s_pg_state.new_start <= '1';
                         		s_pg_fsm <= DISCRETE;
-                        		dis_time <= 62500000;
-                        		dis_count<= 0;
+                        		s_dis_time <= 312500000 + (s_random_seq rem 312500001);
+                        		s_dis_count<= 0;
                       		else
                         	  s_pg_fsm <= CONTINUOUS;
                           end if; 
@@ -169,8 +172,8 @@ begin
                       else
                       	-- continue continuous mode
                     		s_pg_fsm <= CONTINUOUS;
-                    		con_time <= 62500000;
-                    		con_count<= 0;
+                    		s_con_time <= 62500000+ (s_random_seq rem 250000001);
+                    		s_con_count<= 0;
                     	end if;
                     end if;
                     s_pg_state.gen_con_packet <= '1';
@@ -196,15 +199,15 @@ begin
                     	-- switch to the alternate pattern
                     	if ( s_ctrl_reg.mode = "10") then 
                     	-- gaurantee discrete mode run a random time before switch
-                    	  if dis_time /= dis_count then
+                    	  if s_dis_time /= s_dis_count then
                     	  	s_pg_fsm  <= DISCRETE;
-                    	  	dis_count <= dis_count + 1;
+                    	  	s_dis_count <= s_dis_count + 1;
                     	  else
                     	  -- gaurantee a whole packet is transfered before switch to discrete mode
                       		if(s_pg_state.cyc_ended = '1') then
                         		s_pg_fsm <= CONTINUOUS;
-                        		con_time <= 62500000;
-                        		con_count<= 0;
+                        		s_con_time <= 62500000+ (s_random_seq rem 250000001);
+                        		s_con_count<= 0;
                         		s_pg_state.new_start <= '1';
                        		else
                         	  s_pg_fsm <= DISCRETE;
@@ -213,8 +216,8 @@ begin
                       else
                       -- continue continuous mode
                     		s_pg_fsm <= DISCRETE;
-                    		dis_time <= 62500000;
-                        dis_count<= 0;
+                    		s_dis_time <= 312500000 + (s_random_seq rem 312500001);
+                        s_dis_count<= 0;
                     	end if;
                     end if;
                     s_pg_state.gen_con_packet <= '0';
@@ -254,8 +257,9 @@ begin
    -- Frame Generation
    frame_gen : process(clk_i)
 	variable v_mac_address		: std_logic_vector(47 downto 0);
-  variable v_ether_type		: std_logic_vector(15 downto 0);
-	variable v_payload_length : std_logic_vector(15 downto 0);
+   variable v_ether_type		: std_logic_vector(15 downto 0);
+	variable v_payload_length  : integer;
+
 	
    begin
      if rising_edge(clk_i) then       
@@ -266,56 +270,62 @@ begin
            s_pay_load_reg       <= (others => '0');
            s_start_payload      <= '0';
            s_pg_state.cyc_ended <= '1';
-           hdr_cntr             <= 0;
-           load_cntr            <= 0;
-           rate_con             <= 0;
-           rate_dis             <= 0;
-           pkg_cntr         	  <= 0;
+           s_hdr_cntr             <= 0;
+           s_load_cntr            <= 0;
+           s_rate_con             <= 0;
+           s_rate_dis             <= 0;
+           s_pkg_cntr         	  <= 0;
         else
           if s_pg_state.gen_con_packet = '1' then
+            s_old_rate <= 0;
           --get the rate from wb or random
-             if s_ctrl_reg.random_fix(3) = '0' and rate_label = '1'then
-                rate_max <= to_integer (unsigned(s_ctrl_reg.rate));
-                rate_random_cont <= 0;
+             if s_ctrl_reg.random_fix(3) = '0' and s_rate_label = '1'then
+                s_rate_max <= to_integer (unsigned(s_ctrl_reg.rate));
+                s_rate_random_cont <= 0;
              else
-               if s_ctrl_reg.random_fix(3) = '1' and rate_label = '1' then
-                 if rate_random_cont = 0 then
-                   rate_max <= 31250000;
-                   rate_time<= 62500000;
-                   rate_random_cont <= rate_random_cont + 1;
+               if s_ctrl_reg.random_fix(3) = '1' and s_rate_label = '1' then
+				      	--gaurantee the runing time for a random rate value
+                 if s_rate_random_cont = 0 then
+                   s_rate_max <= to_integer((unsigned(s_random_seq_o and x"0fffffff")) rem 50000001 + 12500000);
+                   s_rate_time<= 62500000;
+                   s_rate_random_cont <= s_rate_random_cont + 1;
                  else
-                   rate_random_cont <= rate_random_cont + 1;
+                   s_rate_random_cont <= s_rate_random_cont + 1;
                  end if;
+               else
+                   s_rate_random_cont <= s_rate_random_cont + 1;
                end if;
              end if;
 
-             if rate_max /= rate_con then
+             if s_rate_max /= s_rate_con then
                 case s_frame_fsm is
                   when INIT_HDR =>
-                       rate_label               <= '0';
+                       s_rate_label               <= '0';
                        s_pg_state.cyc_ended     <= '0';
                        s_frame_fsm              <= ETH_HDR;
-                       -- ether_hdr. eth_des_addr  <= des_mac_lut(i rem 4);
-                       configure(s_ctrl_reg.random_fix,v_mac_address,v_ether_type,v_payload_length);
-                       ether_hdr. eth_des_addr  <= v_mac_address;
-			              ether_hdr. eth_etherType <= v_ether_type;
-                       load_max                 <= to_integer(unsigned(v_payload_length));
-                       s_eth_hdr         	      <= f_eth_hdr(ether_hdr);
-                       s_hdr_reg              	<= f_eth_hdr(ether_hdr);
+                       -- s_ether_hdr. eth_des_addr  <= des_mac_lut(i rem 4);
+                       rdm_fix_cfg(s_ctrl_reg.random_fix,v_mac_address,v_ether_type,v_payload_length);
+                       s_ether_hdr. eth_des_addr  <= v_mac_address;
+			              s_ether_hdr. eth_etherType <= v_ether_type;
+                       s_load_max                 <= v_payload_length;
+							  s_load_cntr                <= 0;
+                       s_eth_hdr         	      <= f_eth_hdr(s_ether_hdr);
+                       s_hdr_reg              	<= f_eth_hdr(s_ether_hdr);
                        s_start_payload          <= '0';
                   when ETH_HDR =>
-                       if hdr_cntr = c_hdr_l   then
+						--transfer the ether header 6+6+2 bytes
+                       if s_hdr_cntr = c_hdr_l   then
                           s_frame_fsm           <= PAY_LOAD;
-                          hdr_cntr              <= 0;                           
+                          s_hdr_cntr              <= 0;                           
                           s_start_payload       <= '1';
                        else
                           s_frame_fsm           <= ETH_HDR;
 
                           if pg_src_i.stall /= '1' then
                              s_hdr_reg          <= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
-                             hdr_cntr           <= hdr_cntr + 1;
+                             s_hdr_cntr           <= s_hdr_cntr + 1;
 
-                             if hdr_cntr = c_hdr_l - 1 then
+                             if s_hdr_cntr = c_hdr_l - 1 then
                                 s_start_payload <= '1';
                              else
                                 s_start_payload <= '0';
@@ -323,19 +333,21 @@ begin
                           end if;
                        end if;
                    when PAY_LOAD =>
-                        if load_max = load_cntr then
+						 --transfer the payload, payload length is decided by s_load_max
+                        if s_load_max = s_load_cntr then
                            s_frame_fsm       <= IDLE;
                            s_start_payload   <= '0';
                            s_pay_load_reg    <= (others => '0');
-                           load_cntr         <= 0;
+                           s_load_cntr         <= 0;
                         else
                            s_frame_fsm       <= PAY_LOAD;
                            s_start_payload   <= '1';
                            if pg_src_i.stall /= '1' then
-                              load_cntr      <= load_cntr + 1;
+                              s_load_cntr      <= s_load_cntr + 1;
                            end if;
                         end if;
                    when IDLE    =>
+						 -- IDLE = s_rate_max - 1[Init header]- (6+6+2)/2[Ether header] - s_load_max/2[payload] 
                         s_frame_fsm          <= IDLE;
                         s_pay_load_reg       <= (others => '0');
                         s_hdr_reg            <= (others => '0');
@@ -344,71 +356,72 @@ begin
                         --gaurantee change pattern 
                         if s_pg_state.new_start = '1' then
                           s_frame_fsm        <= INIT_HDR;
-                          rate_random_cont   <= 0;
-								          rate_label         <= '1';
+                          s_rate_random_cont   <= 0;
+								          s_rate_label         <= '1';
                         end if;
                  end case;
-                 rate_con          <= rate_con + 1;   
+                 s_rate_con          <= s_rate_con + 1;   
                else
-                 rate_con          <= 0;  --configure rate
+					-- go back to INIT_HDR after one cycle= rate_max * 16ns
+                 s_rate_con          <= 0;  
                  s_frame_fsm       <= INIT_HDR;
-                 rate_label        <= '1';
-                 if rate_random_cont >= rate_time then
-                   rate_random_cont <= 0;
+                 s_rate_label        <= '1';
+                 if s_rate_random_cont >= s_rate_time then
+                   s_rate_random_cont <= 0;
                  end if;
                end if;
              else
-               rate_con             <= 0;
+               s_rate_con             <= 0;
              end if;
              
             -- packet generator works on the discrete mode
              if s_pg_state.gen_dis_packet = '1' then
               --get the rate from wb or random
-                if s_ctrl_reg.random_fix(3) = '0'and rate_label = '1'then
-                rate_max <= to_integer (unsigned(s_ctrl_reg.rate));
-                  rate_random_cont <= 0;
+                if s_ctrl_reg.random_fix(3) = '0'and s_rate_label = '1'then
+                  s_rate_max <= to_integer (unsigned(s_ctrl_reg.rate));
+                  s_rate_random_cont <= 0;
                 else
-                  if s_ctrl_reg.random_fix(3) = '1' and rate_label ='1' then
-                    if rate_random_cont = 0 then
-                       rate_max <= 31250000;
-                       rate_time<= 62500000;
-                       rate_random_cont <= rate_random_cont + 1;
+                  if s_ctrl_reg.random_fix(3) = '1' and s_rate_label ='1' then
+                    if s_rate_random_cont = 0 then
+                       s_rate_max         <= to_integer((unsigned(s_random_seq_o and x"0fffffff")) rem 6250001 + 6250000);
+                       s_rate_time        <= 31250000;
+                       s_rate_random_cont <= s_rate_random_cont + 1;
                     else
-                      rate_random_cont <= rate_random_cont + 1;
+                      s_rate_random_cont <= s_rate_random_cont + 1;
                     end if;
+                  else
+                      s_rate_random_cont <= s_rate_random_cont + 1;
                   end if;
                 end if;
-					 if (rate_max /= last_rate) then 
-                    rate_dis       <= 62500000;
-                end if;
-                if rate_dis /= 62500000 then
+
+                if s_rate_dis /= 62500000 then
                    case s_frame_fsm is
                      when INIT_HDR =>
-                          rate_label               <= '0';
-			                    s_pg_state.cyc_ended     <= '0';
-			                    pkg_cntr                 <= pkg_cntr +1;
-                          s_frame_fsm      	       <= ETH_HDR;
+                          s_rate_label               <= '0';
+			                    s_pg_state.cyc_ended       <= '0';
+			                    s_pkg_cntr                 <= s_pkg_cntr +1;
+                          s_frame_fsm      	         <= ETH_HDR;
                           --configure mac, ether type, length parameters
-                          configure(s_ctrl_reg.random_fix, v_mac_address, v_ether_type, v_payload_length);
-                          ether_hdr. eth_des_addr  <= v_mac_address;
-			                    ether_hdr. eth_etherType <= v_ether_type;
-                          load_max                 <= to_integer(unsigned(v_payload_length));
-                          s_eth_hdr         	     <= f_eth_hdr(ether_hdr);
-                          s_hdr_reg         	     <= f_eth_hdr(ether_hdr);
+                          rdm_fix_cfg(s_ctrl_reg.random_fix, v_mac_address, v_ether_type, v_payload_length);
+                          s_ether_hdr. eth_des_addr  <= v_mac_address;
+			                    s_ether_hdr. eth_etherType <= v_ether_type;
+                          s_load_max                 <= v_payload_length;
+								          s_eth_hdr         	     <= f_eth_hdr(s_ether_hdr);
+                          s_hdr_reg         	     <= f_eth_hdr(s_ether_hdr);
                           s_start_payload   	     <= '0';
                      when ETH_HDR =>
-			                    if hdr_cntr = c_hdr_l-2   then
+			                    if s_hdr_cntr = c_hdr_l-2   then
                              s_frame_fsm     	      <= PAY_LOAD;
-                             hdr_cntr        	      <= 0;                           
+                             s_hdr_cntr             <= 0;                           
                              s_start_payload   	    <= '1';
                           else
                              s_frame_fsm     	      <= ETH_HDR;
   
                            if pg_src_i.stall /= '1' then
                               s_hdr_reg           <= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
-                              hdr_cntr           	<= hdr_cntr + 1;
+                              s_hdr_cntr           	<= s_hdr_cntr + 1;
 
-                              if hdr_cntr = c_hdr_l - 3 then
+                              if s_hdr_cntr = c_hdr_l - 3 then
                                  s_start_payload   <= '1';
                               else
                                  s_start_payload   <= '0';
@@ -423,30 +436,30 @@ begin
                         end if;
                      when PAY_LOAD =>
 
-                        if load_max = load_cntr then
+                        if s_load_max = s_load_cntr then
                            s_frame_fsm       <= IDLE;
                            s_start_payload   <= '0';
                            s_pay_load_reg    <= (others => '0');
-                           load_cntr         <= 0;
+                           s_load_cntr         <= 0;
                         else
                            s_frame_fsm       <= PAY_LOAD;
                            s_start_payload   <= '1';
                            if pg_src_i.stall /= '1' then
-                              load_cntr         <= load_cntr + 1;
+                              s_load_cntr         <= s_load_cntr + 1;
                            end if;
                         end if;
                      when IDLE    =>
-			                  if (pkg_cntr = (1*1000000000/rate_max/16 )) then
+							--judge whether the number of packet reaches to the rate requirement
+			                  if (s_pkg_cntr * s_rate_max >= 62500000 ) then
                            s_frame_fsm     <= IDLE;
-                           rate_label      <= '1';
-                           if rate_random_cont >= rate_time then
-                             rate_random_cont <= 0;
+                           s_rate_label      <= '1';
+                           if s_rate_random_cont >= s_rate_time then
+                             s_rate_random_cont <= 0;
                            end if;
 
 			                   else
                            s_frame_fsm     <= INIT_HDR ;
 			                   end if;
-                        last_rate <= rate_max;
                         s_pay_load_reg  <= (others => '0');
                         s_hdr_reg       <= (others => '0');
                         s_start_payload <= '0';
@@ -454,20 +467,26 @@ begin
                         --gaurantee change pattern 
                         if s_pg_state.new_start = '1' then
                           s_frame_fsm <= INIT_HDR;
-                          rate_random_cont <= 0;
-								  rate_label       <= '1';
+                          s_rate_random_cont <= 0;
+								          s_rate_label       <= '1';
                         end if;
                      end case;
-                  rate_dis <= rate_dis + 1;   
+                    -- if s_rate_random_cont = 0 then
+                    --   s_rate_dis <= 62500000;
+                    if s_rate_max /= s_old_rate then
+                      s_rate_dis <= 62500000;
+                     else
+                       s_rate_dis <= s_rate_dis + 1;   
+                     end if;
                else
-
-                  rate_dis        	<= 0;--configure rate
-	                pkg_cntr    			<= 0;
+                  s_old_rate          <= s_rate_max;
+                  s_rate_dis        	<= 0;--configure rate
+	                s_pkg_cntr    			<= 0;
                   s_frame_fsm 			<= INIT_HDR;
                end if;
             else
-                  rate_dis       		<= 0;
-                  pkg_cntr          <= 0;
+                  s_rate_dis       		<= 0;
+                  s_pkg_cntr          <= 0;
             end if;
 
             if s_pg_state.gen_dis_packet = '0' and s_pg_state.gen_con_packet = '0' then
@@ -478,14 +497,14 @@ begin
     end process;
 
 -- random sequence for mac address/ether type
-   random_seq : LFSR_GENERIC 
-   generic map(Width    => 31)
+   Random_seq : LFSR_GENERIC 
+   generic map(Width    => 32)
    port map(
-     clock   => clk_i,
-     resetn  => rst_n_i,
-     random_out => j);
+     clock      => clk_i,
+     resetn     => rst_n_i,
+     random_out => s_random_seq_o);
 
-   i <= to_integer(unsigned(j));
+   s_random_seq <= to_integer(unsigned(s_random_seq_o));
 
    payload_gen : xgray_encoder
    generic map(g_length => 16)
@@ -499,6 +518,7 @@ begin
    ----- Fabric Interface
    -- Mux between header and payload
    with s_frame_fsm select
+
    pg_src_o.dat   <= s_pay_load                                            when PAY_LOAD,
                      s_hdr_reg(s_hdr_reg'left downto s_hdr_reg'left - 15)  when ETH_HDR,
                      (others => '0')                                       when others;

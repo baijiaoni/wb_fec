@@ -11,7 +11,6 @@
 --! 0x24, wr, ctrl about packet generator rate
 --! 0x28, wr, choose packet model continuous/discrete
 --! 0x2C, wr, 1 mac; 10 ehter type; 100 payload; 1000 rate from random or fixed 
---! 0x30, wr, set rate at ramdom mode lasting time
 
 library ieee;
 use ieee.std_logic_1164.all;
