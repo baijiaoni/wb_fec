@@ -286,12 +286,9 @@ begin
                if s_ctrl_reg.random_fix(3) = '1' and s_rate_label = '1' then
 				      	--gaurantee the runing time for a random rate value
                  if s_rate_random_cont = 0 then
-                   s_rate_max <= to_integer((unsigned(s_random_seq_o and x"0fffffff")) rem 50000001 + 12500000);
+                   s_rate_max <= to_integer((unsigned(s_random_seq_o and x"0fffffff")) rem 62499201 + 800);
                    s_rate_time<= to_integer(unsigned(s_ctrl_reg.random_rate_time));
                    s_rate_random_cont <= s_rate_random_cont + 1;
-      						 i   <= 1;
-			      			 s_ether_hdr. eth_des_addr  <= des_mac_lut(i);
-						       i   <= 0;
                  else
                    s_rate_random_cont <= s_rate_random_cont + 1;
                  end if;
@@ -308,7 +305,7 @@ begin
                        s_frame_fsm              <= ETH_HDR;
                        -- s_ether_hdr. eth_des_addr  <= des_mac_lut(i rem 4);
                        rdm_fix_cfg(s_ctrl_reg.random_fix,v_mac_address,v_ether_type,v_payload_length);
-                       --s_ether_hdr. eth_des_addr  <= v_mac_address;
+                       s_ether_hdr. eth_des_addr  <= v_mac_address;
 			              s_ether_hdr. eth_etherType <= v_ether_type;
                        s_load_max                 <= v_payload_length;
 							  s_load_cntr                <= 0;
@@ -386,12 +383,9 @@ begin
                 else
                   if s_ctrl_reg.random_fix(3) = '1' and s_rate_label ='1' then
                     if s_rate_random_cont = 0 then
-                       s_rate_max         <= to_integer((unsigned(s_random_seq_o and x"0fffffff")) rem 6250001 + 6250000);
+                       s_rate_max         <= to_integer((unsigned(s_random_seq_o and x"0fffffff")) rem 62499201 + 800);
                        s_rate_time        <= to_integer(unsigned(s_ctrl_reg.random_rate_time));
                        s_rate_random_cont <= s_rate_random_cont + 1;
-					          	  i   <= 1;
-		      				     s_ether_hdr. eth_des_addr  <= des_mac_lut(i);
-    							     i   <= 0;
                     else
                       s_rate_random_cont <= s_rate_random_cont + 1;
                     end if;
@@ -409,7 +403,7 @@ begin
                           s_frame_fsm      	         <= ETH_HDR;
                           --configure mac, ether type, length parameters
                           rdm_fix_cfg(s_ctrl_reg.random_fix, v_mac_address, v_ether_type, v_payload_length);
-                          --s_ether_hdr. eth_des_addr  <= v_mac_address;
+                          s_ether_hdr. eth_des_addr  <= v_mac_address;
 			                    s_ether_hdr. eth_etherType <= v_ether_type;
                           s_load_max                 <= v_payload_length;
 								          s_eth_hdr         	     <= f_eth_hdr(s_ether_hdr);
