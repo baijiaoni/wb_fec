@@ -4,13 +4,15 @@
 --! 0x08, wr, number of frames encoded
 --! 0x0C, wr, number of frames decoded
 --! 0x10, wr, enable/disable generator
---! 0x14, wr, payload
---! 0x18, wr, destination address hb, ethertype
+--! 0x14, wr, set payload length(high four bits) eg.0x01f4****  Range:(46-1500byte)
+--! 0x18, wr, destination address hb, ether type
 --! 0x1C, wr, destination address lb
 --! 0x20, wr, generated frames
---! 0x24, wr, ctrl about packet generator rate
---! 0x28, wr, choose packet model continuous/discrete
---! 0x2C, wr, 1 mac; 10 ehter type; 100 payload; 1000 rate from random or fixed 
+--! 0x24, wr, set about packet generator rate
+--! 0x28, wr, choose packet mode 0x0:continuous  0x1:discrete  0x2:alternate pattern
+--! 0x2C, wr, 0x0 mac, ether type, payload length, rate from wb; 0x1 mac from
+--!           random sequence; 0x2 ether type from random sequence; 0x4 payload from random
+--!           sequence; 0x8 rate from random sequence
 
 library ieee;
 use ieee.std_logic_1164.all;
