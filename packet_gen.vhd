@@ -286,7 +286,8 @@ begin
                if s_ctrl_reg.random_fix(3) = '1' and s_rate_label = '1' then
 				      	--gaurantee the runing time for a random rate value
                  if s_rate_random_cont = 0 then
-                   s_rate_max <= to_integer((unsigned(s_random_seq_o and x"0fffffff")) rem 62499201 + 800);
+                   s_rate_max <= to_integer((unsigned(s_random_seq_o and
+                   x"01ffffff")) rem 20832533 + 800);
                    s_rate_time<= to_integer(unsigned(s_ctrl_reg.random_rate_time));
                    s_rate_random_cont <= s_rate_random_cont + 1;
                  else
