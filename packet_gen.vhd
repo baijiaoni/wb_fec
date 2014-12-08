@@ -48,8 +48,12 @@ architecture rtl of packet_gen is
    signal s_rate_label       : std_logic := '1';
    signal s_old_rate         : integer := 0;
    signal s_random_seq       : integer := 0; 
+	signal s_random_ethtype   : integer := 0; 
+	signal s_random_payload   : integer := 0; 
    signal s_ether_hdr        : t_eth_frame_header;
    signal s_random_seq_o     : std_logic_vector(31 downto 0);
+	signal s_random_ethtype_o : std_logic_vector(2 downto 0);
+	signal s_random_payload_o : std_logic_vector(10 downto 0);
    signal s_first            : integer := 0;
    signal s_pkg_cntr         : integer := 0; 
    signal s_con_count        : integer := 0; 
@@ -66,12 +70,16 @@ architecture rtl of packet_gen is
    2 => x"333333333333",
    3 => x"444444444444"); 
 
-   type lut2 is array ( 0 to 3) of std_logic_vector(15 downto 0);
+   type lut2 is array ( 0 to 7) of std_logic_vector(15 downto 0);
    constant ether_type_lut : lut2 := (
-   0 => x"1111",
-   1 => x"2222",
-   2 => x"3333",
-   3 => x"4444"); 
+   0 => x"0800",
+   1 => x"0800",
+   2 => x"86dd",
+   3 => x"8100",
+   4 => x"8914",
+   5 => x"8137",
+   6 => x"88b7",
+   7 => x"88cc"); 
 
 Procedure rdm_fix_cfg (x: in std_logic_vector(3 downto 0):="0000"; mac_address: out std_logic_vector (47 downto 0);
 							ether_type: out std_logic_vector (15 downto 0); payload_length: out integer) is
@@ -87,13 +95,18 @@ Procedure rdm_fix_cfg (x: in std_logic_vector(3 downto 0):="0000"; mac_address: 
     if (x(1) = '0') then
       ether_type(15 downto 0) := s_ctrl_reg.eth_hdr.eth_etherType;
     else
-      ether_type(15 downto 0) := ether_type_lut(s_random_seq rem 4); 
+     -- ether_type(15 downto 0) := ether_type_lut(s_random_seq rem 5); 
+	   ether_type(15 downto 0) := ether_type_lut(s_random_ethtype);     
     end if;
     -- payload length from random(1) or wb(0)
     if (x(2) = '0') then
       payload_length := to_integer(unsigned(s_ctrl_reg.payload));	
     else
-      payload_length := to_integer((unsigned(s_random_seq_o and x"00000fff")) rem 1455 + 46); -- payload length is 46 to 1500
+		if (0 <= s_random_payload and s_random_payload <= 1454) then
+			payload_length := (s_random_payload + 46)/2;
+		else
+		   payload_length := (s_random_payload - 1000)/2;
+      end if;
     end if;
   END PROCEDURE rdm_fix_cfg;
 
@@ -101,7 +114,7 @@ Procedure rdm_fix_cfg (x: in std_logic_vector(3 downto 0):="0000"; mac_address: 
 
 
 begin
-   s_ether_hdr.eth_src_addr <= x"333322221111";
+   s_ether_hdr.eth_src_addr <= x"ffffffff3333";
   -- Start/Stop fsm Packet Generator
    pg_fsm : process(clk_i)
    begin
@@ -411,7 +424,7 @@ begin
                           s_hdr_reg         	     <= f_eth_hdr(s_ether_hdr);
                           s_start_payload   	     <= '0';
                      when ETH_HDR =>
-			                    if s_hdr_cntr = c_hdr_l-2   then
+			                    if s_hdr_cntr = c_hdr_l   then
                              s_frame_fsm     	      <= PAY_LOAD;
                              s_hdr_cntr             <= 0;                           
                              s_start_payload   	    <= '1';
@@ -422,17 +435,17 @@ begin
                               s_hdr_reg           <= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
                               s_hdr_cntr           	<= s_hdr_cntr + 1;
 
-                              if s_hdr_cntr = c_hdr_l - 3 then
+                              if s_hdr_cntr = c_hdr_l -13 then
                                  s_start_payload   <= '1';
                               else
                                  s_start_payload   <= '0';
                               end if;
-                              s_first <= 0;
-                           else
-			                        if s_first < 2 then
-                                 s_hdr_reg       	<= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
-		                             s_first <= s_first+1;
-                              end if;
+                           --   s_first <= 0;
+                           --else
+			                     --   if s_first < 2 then
+                           --      s_hdr_reg       	<= s_hdr_reg(s_hdr_reg'left -16 downto 0) & x"0000";
+		                       --      s_first <= s_first+1;
+                           --   end if;
                            end if;
                         end if;
                      when PAY_LOAD =>
@@ -507,6 +520,26 @@ begin
 
    s_random_seq <= to_integer(unsigned(s_random_seq_o));
 
+	
+	-- random sequence for mac ether type
+   Ethtype_seq : LFSR_GENERIC 
+   generic map(Width    => 3)
+   port map(
+     clock      => clk_i,
+     resetn     => rst_n_i,
+     random_out => s_random_ethtype_o);
+
+   s_random_ethtype <= to_integer(unsigned(s_random_ethtype_o));
+
+	-- random sequence for payload
+   Payload_seq : LFSR_GENERIC 
+   generic map(Width    => 11)
+   port map(
+     clock      => clk_i,
+     resetn     => rst_n_i,
+     random_out => s_random_payload_o);
+
+   s_random_payload <= to_integer(unsigned(s_random_payload_o));	
    payload_gen : xgray_encoder
    generic map(g_length => 16)
    port map(
